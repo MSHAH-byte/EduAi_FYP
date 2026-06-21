@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "38639244387",
+    "project_id": "ai-teaching-assitant-c441d",
+    "storage_bucket": "ai-teaching-assitant-c441d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:38639244387:android:f7565f5427250c98a21456",
+        "android_client_info": {
+          "package_name": "com.myFypApp.fyp_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBejqMuL04eEAyVUdY5td0VUoitBpMWx_k"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,13 @@
+# Sensitive
+.env
+
+# Python
+__pycache__/
+venv/
+
+# Flutter
+.dart_tool/
+.pub-cache/
+build/
+.flutter-plugins-dependencies
+*.iml
