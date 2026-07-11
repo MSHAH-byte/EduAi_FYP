@@ -52,6 +52,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      ref.read(chatProvider.notifier).loadHistory();
+    });
+  }
+
+  @override
   void dispose() {
     _inputController.dispose();
     _scrollController.dispose();
@@ -182,6 +190,12 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                 ),
                 const SizedBox(width: 6),
                 const Text('Online', style: AppTextStyles.hint),
+                const SizedBox(width: 12),
+                GestureDetector(
+                  onTap: () => ref.read(chatProvider.notifier).clearHistory(),
+                  child: const Icon(Icons.refresh_rounded,
+                      color: AppColors.textHint, size: 20),
+                ),
               ],
             ),
           ),
@@ -189,107 +203,125 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
       ),
       body: Column(
         children: [
+          if (chatState.error != null)
+            Container(
+              margin: const EdgeInsets.all(8),
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: Colors.red.shade50,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(chatState.error!,
+                  style: const TextStyle(color: Colors.red, fontSize: 13)),
+            ),
           // Messages list
           Expanded(
-            child: ListView.builder(
-              controller: _scrollController,
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 16),
-              itemCount: chatState.messages.length +
-                  (chatState.isTyping ? 1 : 0),
-              itemBuilder: (context, index) {
-                // Typing indicator
-                if (chatState.isTyping &&
-                    index == chatState.messages.length) {
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Align(
-                      alignment: Alignment.centerLeft,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 16, vertical: 12),
-                        decoration: BoxDecoration(
-                          color: AppColors.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: AppColors.border),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
+            child: chatState.isLoadingHistory
+                ? const Center(
+                    child: Padding(
+                    padding: EdgeInsets.all(20),
+                    child: CircularProgressIndicator(),
+                  ))
+                : ListView.builder(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 16),
+                    itemCount: chatState.messages.length +
+                        (chatState.isTyping ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      // Typing indicator
+                      if (chatState.isTyping &&
+                          index == chatState.messages.length) {
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 12),
+                          child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 16, vertical: 12),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  _TypingDot(delay: 0),
+                                  const SizedBox(width: 4),
+                                  _TypingDot(delay: 200),
+                                  const SizedBox(width: 4),
+                                  _TypingDot(delay: 400),
+                                  const SizedBox(width: 8),
+                                  const Text(
+                                    'AI is typing...',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontStyle: FontStyle.italic,
+                                      color: AppColors.textHint,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      }
+
+                      final msg = chatState.messages[index];
+
+                      // Quick option chips under first message
+                      if (index == 0) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            _TypingDot(delay: 0),
-                            const SizedBox(width: 4),
-                            _TypingDot(delay: 200),
-                            const SizedBox(width: 4),
-                            _TypingDot(delay: 400),
-                            const SizedBox(width: 8),
-                            const Text(
-                              'AI is typing...',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontStyle: FontStyle.italic,
-                                color: AppColors.textHint,
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 8),
+                              child: ChatBubble(
+                                message: msg.message,
+                                isAi: msg.isAi,
+                                time: msg.time,
+                              ),
+                            ),
+                            Padding(
+                              padding:
+                                  const EdgeInsets.only(left: 4, bottom: 16),
+                              child: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                children: _quickOptions.map((option) {
+                                  return GestureDetector(
+                                    onTap: () => _sendMessage(option),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 12, vertical: 8),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(20),
+                                        border: Border.all(
+                                            color: AppColors.border),
+                                      ),
+                                      child: Text(option,
+                                          style: AppTextStyles.label),
+                                    ),
+                                  );
+                                }).toList(),
                               ),
                             ),
                           ],
-                        ),
-                      ),
-                    ),
-                  );
-                }
+                        );
+                      }
 
-                final msg = chatState.messages[index];
-
-                // Quick option chips under first message
-                if (index == 0) {
-                  return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 8),
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
                         child: ChatBubble(
                           message: msg.message,
                           isAi: msg.isAi,
                           time: msg.time,
                         ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.only(left: 4, bottom: 16),
-                        child: Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _quickOptions.map((option) {
-                            return GestureDetector(
-                              onTap: () => _sendMessage(option),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 12, vertical: 8),
-                                decoration: BoxDecoration(
-                                  color: AppColors.surface,
-                                  borderRadius: BorderRadius.circular(20),
-                                  border: Border.all(
-                                      color: AppColors.border),
-                                ),
-                                child: Text(option,
-                                    style: AppTextStyles.label),
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ),
-                    ],
-                  );
-                }
-
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: ChatBubble(
-                    message: msg.message,
-                    isAi: msg.isAi,
-                    time: msg.time,
+                      );
+                    },
                   ),
-                );
-              },
-            ),
           ),
 
           // Scrollable action chips
@@ -351,8 +383,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       color: AppColors.textPrimary,
                     ),
                     decoration: InputDecoration(
-                      hintText:
-                          'Ask a question or choose an action...',
+                      hintText: 'Ask a question or choose an action...',
                       hintStyle: const TextStyle(
                         color: AppColors.textHint,
                         fontSize: 14,

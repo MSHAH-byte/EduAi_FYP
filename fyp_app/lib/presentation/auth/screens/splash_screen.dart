@@ -32,10 +32,14 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     
     Future.delayed(const Duration(seconds: 3), () {
       if (mounted) {
-        final user = ref.read(authProvider).user;
-        if (user != null) {
-          Navigator.pushReplacementNamed(context, '/dashboard');
-        } else {
+        try {
+          final user = ref.read(authProvider).user;
+          if (user != null) {
+            Navigator.pushReplacementNamed(context, '/dashboard');
+          } else {
+            Navigator.pushReplacementNamed(context, '/login');
+          }
+        } catch (e) {
           Navigator.pushReplacementNamed(context, '/login');
         }
       }
@@ -52,51 +56,56 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surface,
-      body: FadeTransition(
-        opacity: _fadeAnim,
-        child: ScaleTransition(
-          scale: _scaleAnim,
-          child: Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 88,
-                  height: 88,
-                  decoration: BoxDecoration(
-                    color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(22),
-                  ),
-                  child: const Icon(
-                    Icons.menu_book_rounded,
-                    size: 48,
-                    color: AppColors.primary,
-                  ),
+      body: Stack(
+        alignment: Alignment.center,
+        children: [
+          FadeTransition(
+            opacity: _fadeAnim,
+            child: ScaleTransition(
+              scale: _scaleAnim,
+              child: Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Container(
+                      width: 88,
+                      height: 88,
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(22),
+                      ),
+                      child: const Icon(
+                        Icons.menu_book_rounded,
+                        size: 48,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 28),
+                    const Text('AI Teaching Assistant', style: AppTextStyles.heading),
+                    const SizedBox(height: 8),
+                    const Text('Smart Learning Companion', style: AppTextStyles.body),
+                    const SizedBox(height: 48),
+                    const SizedBox(
+                      width: 28,
+                      height: 28,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.5,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('Loading...', style: AppTextStyles.hint),
+                  ],
                 ),
-                const SizedBox(height: 28),
-                const Text('AI Teaching Assistant', style: AppTextStyles.heading),
-                const SizedBox(height: 8),
-                const Text('Smart Learning Companion', style: AppTextStyles.body),
-                const SizedBox(height: 48),
-                const SizedBox(
-                  width: 28,
-                  height: 28,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: AppColors.primary,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                const Text('Loading...', style: AppTextStyles.hint),
-                const SizedBox(height: 32),
-                Text(
-                  'v1.0.0',
-                  style: AppTextStyles.hint.copyWith(fontSize: 11),
-                ),
-              ],
+              ),
             ),
           ),
-        ),
+          const Positioned(
+            bottom: 32,
+            child: Text('v1.0.0',
+              style: TextStyle(color: AppColors.textHint, fontSize: 12)),
+          ),
+        ],
       ),
     );
   }

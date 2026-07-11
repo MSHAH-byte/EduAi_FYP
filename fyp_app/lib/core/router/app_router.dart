@@ -6,7 +6,7 @@ import '../../presentation/student/screens/dashboard_screen.dart';
 import '../../presentation/student/screens/chat_screen.dart';
 
 abstract class AppRouter {
-  static const String splash    = '/splash';
+  static const String splash    = '/';
   static const String login     = '/login';
   static const String signup    = '/signup';
   static const String dashboard = '/dashboard';

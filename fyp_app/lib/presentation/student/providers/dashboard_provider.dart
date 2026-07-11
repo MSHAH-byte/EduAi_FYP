@@ -28,11 +28,12 @@ class DashboardState {
 class DashboardNotifier extends StateNotifier<DashboardState> {
   final UserRepository _repo = UserRepository();
 
-  DashboardNotifier() : super(const DashboardState()) {
-    loadDashboard();
-  }
+  DashboardNotifier() : super(const DashboardState());
 
   Future<void> loadDashboard() async {
+    // Prevent multiple concurrent loads
+    if (state.isLoading) return;
+    
     state = state.copyWith(isLoading: true);
     try {
       final profile = await _repo.getUserProfile();
@@ -42,8 +43,13 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
         userName: profile?['name'] ?? 'Student',
         recentActivity: activity,
       );
-    } catch (_) {
-      state = state.copyWith(isLoading: false);
+    } catch (e) {
+      // Fail gracefully — show defaults if Firestore permission denied
+      state = state.copyWith(
+        isLoading: false,
+        userName: 'Student',
+        recentActivity: [],
+      );
     }
   }
 }

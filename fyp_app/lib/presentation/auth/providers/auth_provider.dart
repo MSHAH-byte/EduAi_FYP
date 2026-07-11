@@ -33,13 +33,18 @@ class AuthNotifier extends StateNotifier<AuthState> {
   final UserRepository _userRepo = UserRepository();
 
   AuthNotifier() : super(const AuthState()) {
-    // Check if user is already logged in
-    final currentUser = _auth.currentUser;
-    if (currentUser != null) {
-      state = state.copyWith(
-        status: AuthStatus.authenticated,
-        user: currentUser,
-      );
+    try {
+      final currentUser = _auth.currentUser;
+      if (currentUser != null) {
+        state = state.copyWith(
+          status: AuthStatus.authenticated,
+          user: currentUser,
+        );
+      } else {
+        state = state.copyWith(status: AuthStatus.unauthenticated);
+      }
+    } catch (e) {
+      state = state.copyWith(status: AuthStatus.unauthenticated);
     }
   }
 
@@ -79,9 +84,8 @@ class AuthNotifier extends StateNotifier<AuthState> {
       // Save user profile to Firestore
       try {
         await _userRepo.saveUserProfile(name: name, email: email);
-        print('✅ User profile saved to Firestore');
       } catch (e) {
-        print('❌ Firestore save failed: $e');
+        // Handle error silently or log if needed
       }
       
       state = state.copyWith(
