@@ -25,11 +25,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
 
   final List<Map<String, dynamic>> _actionChips = [
     {
-      'label': 'Upload Document',
-      'icon': Icons.upload_file_rounded,
-      'color': Color(0xFF4A6CF7),
-    },
-    {
       'label': 'Generate Quiz',
       'icon': Icons.quiz_outlined,
       'color': Color(0xFFF59E0B),
@@ -83,60 +78,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     ref.read(chatProvider.notifier).sendMessage(text.trim());
     _inputController.clear();
     _scrollToBottom();
-  }
-
-  void _showAddFileBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Add to chat', style: AppTextStyles.subheading),
-            const SizedBox(height: 20),
-            ListTile(
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.photo_outlined,
-                    color: AppColors.primary),
-              ),
-              title: const Text('Photos', style: AppTextStyles.label),
-              subtitle: const Text('Choose from gallery',
-                  style: AppTextStyles.hint),
-              onTap: () => Navigator.pop(context),
-            ),
-            const SizedBox(height: 8),
-            ListTile(
-              leading: Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.upload_file_rounded,
-                    color: AppColors.primary),
-              ),
-              title: const Text('File', style: AppTextStyles.label),
-              subtitle: const Text('Upload PDF or DOC',
-                  style: AppTextStyles.hint),
-              onTap: () => Navigator.pop(context),
-            ),
-            const SizedBox(height: 12),
-          ],
-        ),
-      ),
-    );
   }
 
   @override
@@ -358,22 +299,6 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             child: Row(
               children: [
-                // + button
-                GestureDetector(
-                  onTap: _showAddFileBottomSheet,
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(10),
-                    ),
-                    child: const Icon(Icons.add_rounded,
-                        color: AppColors.primary, size: 22),
-                  ),
-                ),
-                const SizedBox(width: 8),
-
                 // Text input
                 Expanded(
                   child: TextField(
