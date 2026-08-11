@@ -1,11 +1,26 @@
 import os
 import json
+import httpx
 from dotenv import load_dotenv
-from groq import Groq
 
 load_dotenv()
 
-client = Groq(api_key=os.getenv("XAI_API_KEY"))
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "gemma3:4b")
+
+
+async def call_ollama(prompt: str) -> str:
+    async with httpx.AsyncClient(timeout=120) as client:
+        response = await client.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+            },
+        )
+        response.raise_for_status()
+    return response.json()["response"]
 
 
 def clean_json(text):
@@ -52,17 +67,8 @@ Return ONLY valid JSON:
 No markdown.
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-
-    return clean_json(response.choices[0].message.content)
+    raw = await call_ollama(prompt)
+    return clean_json(raw)
 
 
 async def generate_notes(topic: str) -> dict:
@@ -79,28 +85,22 @@ Return ONLY valid JSON:
 "key_points": [
 "Point 1",
 "Point 2",
-"Point 3"
+"Point 3",
+"Point 4",
+"Point 5"
 ],
 "detailed_notes": "Write detailed notes as a single paragraph without line breaks"
 }}
 
 Rules:
+- key_points MUST contain EXACTLY 5 items, no more, no less
 - Return only JSON
 - No markdown
 - No explanations outside JSON
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-
-    return clean_json(response.choices[0].message.content)
+    raw = await call_ollama(prompt)
+    return clean_json(raw)
 
 
 async def generate_quiz(topic: str, num_questions: int = 5) -> dict:
@@ -131,46 +131,26 @@ Return ONLY valid JSON:
 No markdown.
 """
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=[
-            {
-                "role": "user",
-                "content": prompt
-            }
-        ]
-    )
-
-    return clean_json(response.choices[0].message.content)
+    raw = await call_ollama(prompt)
+    return clean_json(raw)
 
 
 async def chat_with_ai(message: str, history: list[dict]) -> str:
 
-    messages = [
-        {
-            "role": "system",
-            "content": "You are an AI Teaching Assistant helping students."
-        }
-    ]
-
+    context = ""
     for msg in history[-6:]:
-        messages.append(
-            {
-                "role": msg.get("role", "user"),
-                "content": msg.get("content", "")
-            }
-        )
+        role = msg.get("role", "user")
+        content = msg.get("content", "")
+        context += f"{role}: {content}\n"
 
-    messages.append(
-        {
-            "role": "user",
-            "content": message
-        }
-    )
+    prompt = f"""You are an AI Teaching Assistant helping students.
 
-    response = client.chat.completions.create(
-        model="llama-3.3-70b-versatile",
-        messages=messages
-    )
+Conversation history:
+{context}
 
-    return response.choices[0].message.content.strip()
+Student: {message}
+
+Respond naturally and helpfully."""
+
+    raw = await call_ollama(prompt)
+    return raw.strip()
