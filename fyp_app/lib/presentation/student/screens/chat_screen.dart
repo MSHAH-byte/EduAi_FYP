@@ -1,3 +1,5 @@
+import 'dart:io';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
@@ -80,12 +82,91 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     _scrollToBottom();
   }
 
+  Future<void> _pickAndUploadDocument() async {
+    FilePickerResult? result;
+    try {
+      result = await FilePicker.platform.pickFiles(
+        type: FileType.custom,
+        allowedExtensions: ['pdf', 'docx'],
+      );
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not open the file picker.')),
+        );
+      }
+      return;
+    }
+
+    if (result == null || result.files.single.path == null) return;
+
+    final picked = result.files.single;
+    final extension = (picked.extension ?? '').toLowerCase();
+
+    if (extension != 'pdf' && extension != 'docx') {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please select a PDF or DOCX file.')),
+        );
+      }
+      return;
+    }
+
+    await ref.read(chatProvider.notifier).uploadDocument(
+      File(picked.path!),
+      picked.name,
+    );
+
+    _scrollToBottom();
+  }
+
+  void _showUploadSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.upload_file_rounded,
+                      color: AppColors.primary),
+                ),
+                title: const Text('Upload Document', style: AppTextStyles.label),
+                subtitle: const Text('PDF or DOCX', style: AppTextStyles.hint),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickAndUploadDocument();
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final chatState = ref.watch(chatProvider);
 
     ref.listen(chatProvider, (previous, next) {
       if (previous?.isTyping == true && !next.isTyping) {
+        _scrollToBottom();
+      }
+      if (previous?.isUploading == true && !next.isUploading) {
         _scrollToBottom();
       }
     });
@@ -159,110 +240,140 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: chatState.isLoadingHistory
                 ? const Center(
-                    child: Padding(
-                    padding: EdgeInsets.all(20),
-                    child: CircularProgressIndicator(),
-                  ))
+                child: Padding(
+                  padding: EdgeInsets.all(20),
+                  child: CircularProgressIndicator(),
+                ))
                 : ListView.builder(
-                    controller: _scrollController,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 16),
-                    itemCount: chatState.messages.length +
-                        (chatState.isTyping ? 1 : 0),
-                    itemBuilder: (context, index) {
-                      // Typing indicator
-                      if (chatState.isTyping &&
-                          index == chatState.messages.length) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 12),
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 16, vertical: 12),
-                              decoration: BoxDecoration(
-                                color: AppColors.surface,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: AppColors.border),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  _TypingDot(delay: 0),
-                                  const SizedBox(width: 4),
-                                  _TypingDot(delay: 200),
-                                  const SizedBox(width: 4),
-                                  _TypingDot(delay: 400),
-                                  const SizedBox(width: 8),
-                                  const Text(
-                                    'AI is typing...',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontStyle: FontStyle.italic,
-                                      color: AppColors.textHint,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        );
-                      }
-
-                      final msg = chatState.messages[index];
-
-                      // Quick option chips under first message
-                      if (index == 0) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
+              controller: _scrollController,
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 16, vertical: 16),
+              itemCount: chatState.messages.length +
+                  ((chatState.isTyping || chatState.isUploading) ? 1 : 0),
+              itemBuilder: (context, index) {
+                // Typing indicator
+                if ((chatState.isTyping || chatState.isUploading) &&
+                    index == chatState.messages.length) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 16, vertical: 12),
+                        decoration: BoxDecoration(
+                          color: AppColors.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: AppColors.border),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: 8),
-                              child: ChatBubble(
-                                message: msg.message,
-                                isAi: msg.isAi,
-                                time: msg.time,
-                              ),
-                            ),
-                            Padding(
-                              padding:
-                                  const EdgeInsets.only(left: 4, bottom: 16),
-                              child: Wrap(
-                                spacing: 8,
-                                runSpacing: 8,
-                                children: _quickOptions.map((option) {
-                                  return GestureDetector(
-                                    onTap: () => _sendMessage(option),
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(
-                                          horizontal: 12, vertical: 8),
-                                      decoration: BoxDecoration(
-                                        color: AppColors.surface,
-                                        borderRadius: BorderRadius.circular(20),
-                                        border: Border.all(
-                                            color: AppColors.border),
-                                      ),
-                                      child: Text(option,
-                                          style: AppTextStyles.label),
-                                    ),
-                                  );
-                                }).toList(),
+                            _TypingDot(delay: 0),
+                            const SizedBox(width: 4),
+                            _TypingDot(delay: 200),
+                            const SizedBox(width: 4),
+                            _TypingDot(delay: 400),
+                            const SizedBox(width: 8),
+                            Text(
+                              chatState.isUploading
+                                  ? 'Reading ${chatState.uploadingFileName ?? "document"}...'
+                                  : 'AI is typing...',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                fontStyle: FontStyle.italic,
+                                color: AppColors.textHint,
                               ),
                             ),
                           ],
-                        );
-                      }
+                        ),
+                      ),
+                    ),
+                  );
+                }
 
-                      return Padding(
-                        padding: const EdgeInsets.only(bottom: 12),
+                final msg = chatState.messages[index];
+
+                // Quick option chips under first message
+                if (index == 0) {
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
                         child: ChatBubble(
                           message: msg.message,
                           isAi: msg.isAi,
                           time: msg.time,
                         ),
-                      );
-                    },
+                      ),
+                      Padding(
+                        padding:
+                        const EdgeInsets.only(left: 4, bottom: 16),
+                        child: Wrap(
+                          spacing: 8,
+                          runSpacing: 8,
+                          children: _quickOptions.map((option) {
+                            return GestureDetector(
+                              onTap: () => _sendMessage(option),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(20),
+                                  border: Border.all(
+                                      color: AppColors.border),
+                                ),
+                                child: Text(option,
+                                    style: AppTextStyles.label),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                    ],
+                  );
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: msg.fileName != null
+                      ? Align(
+                    alignment: Alignment.centerRight,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 12),
+                      decoration: BoxDecoration(
+                        color: AppColors.primaryLight,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.description_rounded,
+                              size: 18, color: AppColors.primary),
+                          const SizedBox(width: 8),
+                          ConstrainedBox(
+                            constraints:
+                            const BoxConstraints(maxWidth: 200),
+                            child: Text(msg.fileName!,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.label),
+                          ),
+                        ],
+                      ),
+                    ),
+                  )
+                      : ChatBubble(
+                    message: msg.message,
+                    isAi: msg.isAi,
+                    time: msg.time,
                   ),
+                );
+              },
+            ),
           ),
 
           // Scrollable action chips
@@ -299,6 +410,27 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             ),
             child: Row(
               children: [
+                // Attachment button
+                GestureDetector(
+                  onTap: chatState.isUploading ? null : _showUploadSheet,
+                  child: Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: AppColors.primaryLight,
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Icon(
+                      Icons.add_rounded,
+                      color: chatState.isUploading
+                          ? AppColors.textHint
+                          : AppColors.primary,
+                      size: 22,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+
                 // Text input
                 Expanded(
                   child: TextField(

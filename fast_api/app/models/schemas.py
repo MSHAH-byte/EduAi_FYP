@@ -36,3 +36,9 @@ class ChatRequest(BaseModel):
 
 class ChatResponse(BaseModel):
     response: str
+
+class DocumentSummaryResponse(BaseModel):
+    filename: str
+    summary: str
+    character_count: int
+    chunks_processed: int

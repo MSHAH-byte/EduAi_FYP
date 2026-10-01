@@ -58,22 +58,22 @@ class _GenerateScreenState extends State<GenerateScreen> {
         case GenerateType.slides:
           result = await _api.generateSlides(topic, 5);
           if (mounted) Navigator.push(context,
-            MaterialPageRoute(builder: (_) => SlidesResultScreen(data: result)));
+              MaterialPageRoute(builder: (_) => SlidesResultScreen(data: result)));
           break;
         case GenerateType.notes:
           result = await _api.generateNotes(topic);
           if (mounted) Navigator.push(context,
-            MaterialPageRoute(builder: (_) => NotesResultScreen(data: result)));
+              MaterialPageRoute(builder: (_) => NotesResultScreen(data: result)));
           break;
         case GenerateType.quiz:
           result = await _api.generateQuiz(topic, 5);
           if (mounted) Navigator.push(context,
-            MaterialPageRoute(builder: (_) => QuizResultScreen(data: result)));
+              MaterialPageRoute(builder: (_) => QuizResultScreen(data: result)));
           break;
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')));
+          SnackBar(content: Text('Error: ${e.toString()}')));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

@@ -11,3 +11,7 @@ venv/
 build/
 .flutter-plugins-dependencies
 *.iml
+
+# Fine-tuned Ollama model (large binary)
+fast_api/eduai-finetuned-gguf/*.gguf
+fast_api/eduai-finetuned-gguf/.cache/

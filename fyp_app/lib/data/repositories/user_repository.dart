@@ -58,6 +58,7 @@ class UserRepository {
     required String message,
     required bool isAi,
     required String time,
+    String? fileName,
   }) async {
     if (_uid == null) return;
     await _firestore
@@ -68,6 +69,7 @@ class UserRepository {
       'message': message,
       'isAi': isAi,
       'time': time,
+      'fileName': fileName,
       'createdAt': FieldValue.serverTimestamp(),
     });
   }

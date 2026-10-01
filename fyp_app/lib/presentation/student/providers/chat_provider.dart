@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../data/datasources/remote/fastapi_service.dart';
@@ -7,10 +9,16 @@ class ChatMessage {
   final String message;
   final bool isAi;
   final String time;
+
+  /// Set when this message represents an uploaded document, so the UI can render a
+  /// file chip instead of a normal bubble.
+  final String? fileName;
+
   const ChatMessage({
     required this.message,
     required this.isAi,
     required this.time,
+    this.fileName,
   });
 }
 
@@ -19,23 +27,35 @@ class ChatState {
   final bool isTyping;
   final bool isLoadingHistory;
   final String? error;
+
+  /// Separate from isTyping so the indicator can name the file being read.
+  final bool isUploading;
+  final String? uploadingFileName;
+
   const ChatState({
     this.messages = const [],
     this.isTyping = false,
     this.isLoadingHistory = false,
     this.error,
+    this.isUploading = false,
+    this.uploadingFileName,
   });
+
   ChatState copyWith({
     List<ChatMessage>? messages,
     bool? isTyping,
     bool? isLoadingHistory,
     String? error,
+    bool? isUploading,
+    String? uploadingFileName,
   }) {
     return ChatState(
       messages: messages ?? this.messages,
       isTyping: isTyping ?? this.isTyping,
       isLoadingHistory: isLoadingHistory ?? this.isLoadingHistory,
       error: error ?? this.error,
+      isUploading: isUploading ?? this.isUploading,
+      uploadingFileName: uploadingFileName ?? this.uploadingFileName,
     );
   }
 }
@@ -68,8 +88,9 @@ class ChatNotifier extends StateNotifier<ChatState> {
           message: m['message'] ?? '',
           isAi: m['isAi'] ?? true,
           time: m['time'] ?? '',
+          fileName: m['fileName'],
         )).toList();
-        
+
         // Sync history for AI context
         _history.clear();
         for (final m in history) {
@@ -78,7 +99,7 @@ class ChatNotifier extends StateNotifier<ChatState> {
             'content': m['message'] ?? '',
           });
         }
-        
+
         state = state.copyWith(
           messages: messages,
           isLoadingHistory: false,
@@ -140,6 +161,70 @@ class ChatNotifier extends StateNotifier<ChatState> {
       state = state.copyWith(
         isTyping: false,
         error: 'Failed to get response. Check your connection.',
+      );
+    }
+  }
+
+  // -------------------------------------------------------------------
+  // Document upload + summarization
+  // -------------------------------------------------------------------
+
+  Future<void> uploadDocument(File file, String fileName) async {
+    final time = _currentTime();
+
+    // 1. Echo the attachment straight away so the UI feels responsive.
+    final attachmentMessage = ChatMessage(
+      message: fileName,
+      isAi: false,
+      time: time,
+      fileName: fileName,
+    );
+    state = state.copyWith(
+      messages: [...state.messages, attachmentMessage],
+      isUploading: true,
+      uploadingFileName: fileName,
+      error: null,
+    );
+
+    await _repo.saveChatMessage(
+      message: fileName,
+      isAi: false,
+      time: time,
+      fileName: fileName,
+    );
+
+    // 2. Upload, extract, summarize.
+    try {
+      final result = await _api.summarizeDocument(file);
+      final aiTime = _currentTime();
+
+      // Keep the AI context history short — pushing a full summary in here
+      // would dominate the prompt on every later chat message.
+      _history.add({'role': 'user', 'content': 'Uploaded a document: $fileName'});
+      _history.add({
+        'role': 'assistant',
+        'content': 'Summarized the document "$fileName".',
+      });
+
+      await _repo.saveChatMessage(
+        message: result.summary,
+        isAi: true,
+        time: aiTime,
+      );
+
+      state = state.copyWith(
+        messages: [
+          ...state.messages,
+          ChatMessage(message: result.summary, isAi: true, time: aiTime),
+        ],
+        isUploading: false,
+      );
+    } on DocumentUploadException catch (e) {
+      state = state.copyWith(isUploading: false, error: e.message);
+    } catch (e) {
+      state = state.copyWith(
+        isUploading: false,
+        error: 'Upload failed. Please try again.',
       );
     }
   }
